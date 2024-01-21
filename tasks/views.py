@@ -5,6 +5,8 @@ from django.contrib.auth import login, logout, authenticate
 from django.db import IntegrityError
 from .forms import TaskForm
 from .models import Task
+from django.utils import timezone
+from django.contrib.auth.decorators import login_required
 
 # Create your views here.
 
@@ -39,12 +41,22 @@ def signup(request):
         })
 
 
+@login_required
 def tasks(request):
     #tasks = Task.objects.all()
     tasks = Task.objects.filter(user=request.user, datecompleted__isnull=True)
 
     return render(request, 'tasks.html', {'tasks':tasks})
 
+
+@login_required
+def tasks_completed(request):
+    #tasks = Task.objects.all()
+    tasks = Task.objects.filter(user=request.user, datecompleted__isnull=False).order_by('-datecompleted')
+
+    return render(request, 'tasks.html', {'tasks':tasks})
+
+@login_required
 def create_task(request):
 
     if request.method == 'GET':
@@ -68,7 +80,7 @@ def create_task(request):
         })
     
 
-
+@login_required
 def task_detail(request, task_id):
   #  task = Task.objects.get(pk=task_id) esto tumba el servidor si no encuentra la tarea
     if request.method == 'GET':
@@ -84,8 +96,23 @@ def task_detail(request, task_id):
         except ValueError:
             return render(request, 'task_detail.html', {'task': task, 'form': form, 'error':"Error al actualizar"})
 
-    
 
+@login_required
+def complete_task(request, task_id):    
+    task = get_object_or_404(Task, pk=task_id, user=request.user)
+    if request.method == 'POST':
+        task.datecompleted = timezone.now()
+        task.save()
+        return redirect('tasks')
+
+@login_required    
+def delete_task(request, task_id):    
+    task = get_object_or_404(Task, pk=task_id, user=request.user)
+    if request.method == 'POST':
+        task.delete()
+        return redirect('tasks')
+         
+@login_required
 def signout(request):
     logout(request)
     return redirect('home')
@@ -109,3 +136,5 @@ def signin(request):
         else:
             login(request, user)
             return redirect('tasks')
+        
+        
